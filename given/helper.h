@@ -21,7 +21,9 @@
 # include <iostream>
 using namespace std;
 
-# define SEM_KEY 0x50 // Change this number as needed
+//key_t sem_key = ftok("/tmp", 'a');
+//# define SEM_KEY 0x50 // Change this number as needed
+# define SEM_KEY 0x488378911
 
 union semun {
     int val;               /* used for SETVAL only */
