@@ -13,9 +13,9 @@ struct producer_thread_data {
   int number_of_jobs_per_producer;
   int queue_size;
   int sem_id;
-  int mutex;
-  int full;
-  int empty;
+  int* mutex;
+  int* full;
+  int* empty;
 };
 
 struct consumer_thread_data {
@@ -27,14 +27,16 @@ struct consumer_thread_data {
   int* empty;
 };
 
+/*
 struct job_data {
   int id;
   int duration;
 };
+*/
 
 // How can I improve it?
 int shared_buffer[100];
-
+int item_counter = 0;
 
 int main (int argc, char **argv)
 {
@@ -46,7 +48,11 @@ int main (int argc, char **argv)
   int number_of_consumers = check_arg(argv[4]);
 
   // 1(b)
-  //int shared_buffer[queue_size];
+
+  // initialize the queue with 0, representing the empty values
+  for(int i = 0; i < queue_size; i++) {
+    shared_buffer[i] = 0;
+  }
 
   // 1(c)
   
@@ -71,11 +77,11 @@ int main (int argc, char **argv)
   // Initialization of the Semaphores
   
   int init1 = sem_init(sem_id, mutex, 1);
-  cout << "Semaphore initialized " << init1 << endl;
+  //cout << "Semaphore initialized " << init1 << endl;
   int init2 = sem_init(sem_id, full, 0);
-  cout << "Semaphore initialized " << init2 << endl;  
+  //cout << "Semaphore initialized " << init2 << endl;  
   int init3 = sem_init(sem_id, empty, queue_size);
-  cout << "Semaphore initialized " << init3 << endl;
+  //cout << "Semaphore initialized " << init3 << endl;
 
   // To be deleted
   if((init1 == 0) && (init2 == 0) && (init3 == 0)) {
@@ -89,12 +95,12 @@ int main (int argc, char **argv)
   
   for(int i = 0; i < number_of_producers; i++) {
     producer_data[i].thread_id = i;
-    producer_data[i].number_of_jobs_per_producer = number_of_jobs_per_producer;
+    producer_data[i].number_of_jobs_per_producer = number_of_jobs_per_producer; 
     producer_data[i].queue_size = queue_size;
     producer_data[i].sem_id = sem_id;
-    producer_data[i].mutex = mutex;
-    producer_data[i].full = full;
-    producer_data[i].empty = empty;
+    producer_data[i].mutex = &mutex;
+    producer_data[i].full = &full;
+    producer_data[i].empty = &empty;
   
     pthread_create(&producersid[i], NULL, producer, (void*) &producer_data[i]);
   }
@@ -148,6 +154,12 @@ int main (int argc, char **argv)
   return 0;
 }
 
+int produce_job() {
+  srand(time(NULL));
+
+  return (rand() % 10 + 1);
+}
+
 void *producer(void *parameter)
 {
 
@@ -163,32 +175,87 @@ void *producer(void *parameter)
   int num_of_jobs_per_producer = received_data->number_of_jobs_per_producer;
   int queue_size = received_data->queue_size;
   int sem_id = received_data->sem_id;
-  int mutex = received_data->mutex;
-  int full = received_data->full;
-  int empty = received_data->empty;
+  int* mutex = received_data->mutex;
+  int* full = received_data->full;
+  int* empty = received_data->empty;
 
-  int job_dur = 2;
-
+  int job_dur;
+  
+  // loop forever
+  // while(TRUE)
+  
   while(jobs_produced < num_of_jobs_per_producer) {
-    sem_wait(sem_id, empty);
-    sem_wait(sem_id, mutex);
+    job_dur = produce_job();
+
+    sem_wait(sem_id, *empty);
+    // // Block while waiting for an empty slot
+    // if(item_counter == queue_size) {
+    //   cout << "Blocked " << endl;
+    //   int closed = sem_close(sem_id);
+    //   cout << "Closed " << closed << endl;
+    //   break;
+    // }
+    
+    sem_wait(sem_id, *mutex);
     shared_buffer[jobs_produced] = job_dur;
     jobs_produced++;
-    cout << "producing... " << jobs_produced << "job " << endl;
-    sem_signal(sem_id, mutex);
-    sem_signal(sem_id, full);
+    cout << "producing... " << jobs_produced << " job from thread " << thread_id << endl;
+    sem_signal(sem_id, *mutex);
+    sem_signal(sem_id, *full);
+
+    srand(time(NULL));
+    int next_job_produced_in = rand() % 5 + 1;
+    sleep(next_job_produced_in);
   }
 
-  cout << "shared buffer[0] " << shared_buffer[0] << endl;
-  cout << "jobs produced " << jobs_produced << endl;
-  
+  if(jobs_produced == num_of_jobs_per_producer) {
+    cout << "Producer(" << thread_id << "): No more jobs to generate." << endl;
+  }
+
   pthread_exit(0);
 }
 
-void *consumer (void *id)
-{
-    // TODO
+int remove_item() {
+  int i = 0;
 
+  while(shared_buffer[i] == 0)
+    i++;
+
+  int duration = shared_buffer[i];
+  
+  // remove the item that will be consumed
+  shared_buffer[i] = 0;
+  
+  return duration;
+}
+
+void *consumer (void *parameter)
+{
+  struct consumer_thread_data *received_data;
+
+  received_data = (struct consumer_thread_data *) parameter;
+
+  int thread_id = received_data->thread_id;
+  int queue_size = received_data->queue_size;
+  int sem_id = received_data->sem_id;
+  int* mutex = received_data->mutex;
+  int* full = received_data->full;
+  int* empty = received_data->empty;
+
+  int duration;
+
+  while(true) {
+    sem_wait(sem_id, *full);
+    sem_wait(sem_id, *mutex);
+    duration = remove_item();
+    cout << "consuming from thread... " << thread_id  << endl;
+    sem_signal(sem_id, *mutex);
+    sem_signal(sem_id, *empty);
+
+    sleep(duration);
+  }
+  
   pthread_exit (0);
 
 }
+
