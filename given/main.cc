@@ -12,6 +12,7 @@ struct producer_thread_data {
   int thread_id;
   int number_of_jobs_per_producer;
   int queue_size;
+  int* producer_index;
   int sem_id;
   int mutex;
   int full;
@@ -21,6 +22,7 @@ struct producer_thread_data {
 struct consumer_thread_data {
   int thread_id;
   int queue_size;
+  int* consumer_index;
   int sem_id;
   int mutex;
   int full;
@@ -53,6 +55,10 @@ int main (int argc, char **argv)
   for(int i = 0; i < queue_size; i++) {
     shared_buffer[i] = 0;
   }
+
+  // Initialize indexes in order to keep track of the next item in each case
+  int producer_index = 0;
+  int consumer_index = 0;
 
   // 1(c)
   
@@ -89,6 +95,7 @@ int main (int argc, char **argv)
     producer_data[i].thread_id = i;
     producer_data[i].number_of_jobs_per_producer = number_of_jobs_per_producer; 
     producer_data[i].queue_size = queue_size;
+    producer_data[i]->producer_index = &producer_index
     producer_data[i].sem_id = sem_id;
     producer_data[i].mutex = mutex;
     producer_data[i].full = full;
@@ -106,6 +113,7 @@ int main (int argc, char **argv)
   for(int i = 0; i < number_of_consumers; i++) {
     consumer_data[i].thread_id = i;
     consumer_data[i].queue_size = queue_size;
+    consumer_data[i].consumer_index = &consumer_index;
     consumer_data[i].sem_id = sem_id;
     consumer_data[i].mutex = mutex;
     consumer_data[i].full = full;
@@ -164,6 +172,7 @@ void *producer(void *parameter)
   int thread_id = received_data->thread_id;
   int num_of_jobs_per_producer = received_data->number_of_jobs_per_producer;
   int queue_size = received_data->queue_size;
+  int* producer_index = received_data->producer_index;
   int sem_id = received_data->sem_id;
   int mutex = received_data->mutex;
   int full = received_data->full;
@@ -201,7 +210,8 @@ void *producer(void *parameter)
     cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
     // How to check if it is blocked
     sem_wait(sem_id, mutex);
-    shared_buffer[jobs_produced] = job_dur;
+    shared_buffer[*producer_index] = job_dur;
+    *producer_index++;
     jobs_produced++;
     cout << "producing... " << jobs_produced << " job from thread " << thread_id << endl;
     sem_signal(sem_id, mutex);
@@ -243,6 +253,7 @@ void *consumer (void *parameter)
 
   int thread_id = received_data->thread_id;
   int queue_size = received_data->queue_size;
+  int* consumer_index = received_data->consumer_index;
   int sem_id = received_data->sem_id;
   int mutex = received_data->mutex;
   int full = received_data->full;
