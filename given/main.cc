@@ -124,14 +124,6 @@ int main (int argc, char **argv)
 
   // 1(e)
 
-  // Close the semaphores
-  int closed = sem_close(sem_id);
-
-  // To be deleted
-  if(!closed) {
-    cout << "Semaphores successfully closed" << endl;
-  }
-
   // Ensure that all threds are done
   for(int i = 0; i < number_of_producers; i++) {
     pthread_join(producersid[i], NULL);
@@ -140,7 +132,15 @@ int main (int argc, char **argv)
   for(int i = 0; i < number_of_consumers; i++) {
     pthread_join(consumersid[i], NULL);
   }
-  
+
+  // Close the semaphores
+  int closed = sem_close(sem_id);
+
+  // To be deleted
+  if(!closed) {
+    cout << "Semaphores successfully closed" << endl;
+  }
+
   pthread_exit(0);
 
   return 0;
@@ -183,22 +183,9 @@ void *producer(void *parameter)
   while(jobs_produced < num_of_jobs_per_producer) {
 
     job_dur = produce_job();
-    
-    //sb.sem_num = empty;
-    //sb.sem_op = 0;
-    //sb.sem_flg = 0;
-    //tim.tv_sec = 20;
 
-    // wait_result = semtimedop(sem_id, &sb, 1, &tim); 
+    //sem_wait(sem_id, empty);
 
-    // cout << "Wait result is " << wait_result << endl;
-
-    // if(!wait_result) {
-    //   cout << "Wait time: 20'' but nothing happened " << endl;
-    //   break;
-    // }
-
-    sem_wait(sem_id, empty);
     //cout << "Semtimedop " << semtimedop(sem_id, &sb, 1, &tim) << endl;
     sem_time_wait(sem_id, empty, 20);
     //cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
@@ -267,7 +254,8 @@ void *consumer (void *parameter)
   int duration;
 
   while(true) {
-    sem_wait(sem_id, full);
+
+    //sem_wait(sem_id, full);
 
     sem_time_wait(sem_id, full, 20);
     //cout << "Value of full in Consumer is " << semctl(sem_id, full, GETVAL) << endl;
@@ -286,6 +274,8 @@ void *consumer (void *parameter)
     // This has the meaning of "consume the removed item"
     sleep(duration);
   }
+
+  cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
   
   pthread_exit (0);
 
