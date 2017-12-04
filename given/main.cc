@@ -13,18 +13,18 @@ struct producer_thread_data {
   int number_of_jobs_per_producer;
   int queue_size;
   int sem_id;
-  int* mutex;
-  int* full;
-  int* empty;
+  int mutex;
+  int full;
+  int empty;
 };
 
 struct consumer_thread_data {
   int thread_id;
   int queue_size;
   int sem_id;
-  int* mutex;
-  int* full;
-  int* empty;
+  int mutex;
+  int full;
+  int empty;
 };
 
 /*
@@ -60,20 +60,12 @@ int main (int argc, char **argv)
   int mutex = 0;
   int full = 1;
   int empty = 2;
-  
-  // Initial value of each created semaphore used for initialization
-  //int mutex = 1;
-  //int full = 0;
-  //int empty = queue_size;
-  
-  //sem_t mutex;
-  //sem_t item;
-  //sem_t empty;
-  
+    
   // Creation of the 3 Semaphores that will be needed
   int sem_id;
   sem_id = sem_create(SEM_KEY, 3);
-  cout << "Semaphore array created " << sem_id << endl;
+  //cout << "Semaphore array created " << sem_id << endl;
+  
   // Initialization of the Semaphores
   
   int init1 = sem_init(sem_id, mutex, 1);
@@ -92,15 +84,15 @@ int main (int argc, char **argv)
   pthread_t producersid[number_of_producers];
 
   struct producer_thread_data producer_data[number_of_producers];
-  
+
   for(int i = 0; i < number_of_producers; i++) {
     producer_data[i].thread_id = i;
     producer_data[i].number_of_jobs_per_producer = number_of_jobs_per_producer; 
     producer_data[i].queue_size = queue_size;
     producer_data[i].sem_id = sem_id;
-    producer_data[i].mutex = &mutex;
-    producer_data[i].full = &full;
-    producer_data[i].empty = &empty;
+    producer_data[i].mutex = mutex;
+    producer_data[i].full = full;
+    producer_data[i].empty = empty;
   
     pthread_create(&producersid[i], NULL, producer, (void*) &producer_data[i]);
   }
@@ -115,9 +107,9 @@ int main (int argc, char **argv)
     consumer_data[i].thread_id = i;
     consumer_data[i].queue_size = queue_size;
     consumer_data[i].sem_id = sem_id;
-    consumer_data[i].mutex = &mutex;
-    consumer_data[i].full = &full;
-    consumer_data[i].empty = &empty;
+    consumer_data[i].mutex = mutex;
+    consumer_data[i].full = full;
+    consumer_data[i].empty = empty;
   
     pthread_create(&consumersid[i], NULL, consumer, (void*) &consumer_data[i]);
   }
@@ -165,8 +157,6 @@ void *producer(void *parameter)
 
   //int *param = (int *) parameter;
 
-  int jobs_produced = 0;
-
   struct producer_thread_data *received_data;
 
   received_data = (struct producer_thread_data *) parameter;
@@ -175,36 +165,40 @@ void *producer(void *parameter)
   int num_of_jobs_per_producer = received_data->number_of_jobs_per_producer;
   int queue_size = received_data->queue_size;
   int sem_id = received_data->sem_id;
-  int* mutex = received_data->mutex;
-  int* full = received_data->full;
-  int* empty = received_data->empty;
+  int mutex = received_data->mutex;
+  int full = received_data->full;
+  int empty = received_data->empty;
 
+  int jobs_produced = 0;
   int job_dur;
+  int next_job_produced_in;
   
   // loop forever
   // while(TRUE)
-  
+ 
   while(jobs_produced < num_of_jobs_per_producer) {
     job_dur = produce_job();
 
-    sem_wait(sem_id, *empty);
-    // // Block while waiting for an empty slot
-    // if(item_counter == queue_size) {
-    //   cout << "Blocked " << endl;
-    //   int closed = sem_close(sem_id);
-    //   cout << "Closed " << closed << endl;
-    //   break;
-    // }
-    
-    sem_wait(sem_id, *mutex);
+    sem_wait(sem_id, empty);
+    //cout << "Empty: " << semctl(sem_id, empty, GETVAL) << endl;
+
+    if(semctl(sem_id, empty, GETVAL) < 0) {
+      cout << "Here we are! " << endl;
+      sem_signal(sem_id, empty);
+      //exit(1);
+    }
+
+    sem_wait(sem_id, mutex);
     shared_buffer[jobs_produced] = job_dur;
     jobs_produced++;
     cout << "producing... " << jobs_produced << " job from thread " << thread_id << endl;
-    sem_signal(sem_id, *mutex);
-    sem_signal(sem_id, *full);
+    sem_signal(sem_id, mutex);
+    sem_signal(sem_id, full);
+
+    cout << "Value of full in producer is " << semctl(sem_id, full, GETVAL) << endl;
 
     srand(time(NULL));
-    int next_job_produced_in = rand() % 5 + 1;
+    next_job_produced_in = rand() % 5 + 1;
     sleep(next_job_produced_in);
   }
 
@@ -238,20 +232,24 @@ void *consumer (void *parameter)
   int thread_id = received_data->thread_id;
   int queue_size = received_data->queue_size;
   int sem_id = received_data->sem_id;
-  int* mutex = received_data->mutex;
-  int* full = received_data->full;
-  int* empty = received_data->empty;
+  int mutex = received_data->mutex;
+  int full = received_data->full;
+  int empty = received_data->empty;
 
   int duration;
 
   while(true) {
-    sem_wait(sem_id, *full);
-    sem_wait(sem_id, *mutex);
+    sem_wait(sem_id, full);
+    
+    cout << "Value of full is " << semctl(sem_id, full, GETVAL) << endl;
+ 
+    sem_wait(sem_id, mutex);
     duration = remove_item();
     cout << "consuming from thread... " << thread_id  << endl;
-    sem_signal(sem_id, *mutex);
-    sem_signal(sem_id, *empty);
+    sem_signal(sem_id, mutex);
+    sem_signal(sem_id, empty);
 
+    // This has the meaning of "consume the removed item"
     sleep(duration);
   }
   

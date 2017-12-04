@@ -23,7 +23,7 @@ using namespace std;
 
 //key_t sem_key = ftok("/tmp", 'a');
 //# define SEM_KEY 0x50 // Change this number as needed
-# define SEM_KEY 0x4883789131
+# define SEM_KEY 0x4883789112
 
 union semun {
     int val;               /* used for SETVAL only */
