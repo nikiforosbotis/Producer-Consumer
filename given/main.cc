@@ -34,7 +34,7 @@ struct job_data {
 };
 */
 
-// How can I improve it?
+// See how I could improve it!
 int shared_buffer[100];
 int item_counter = 0;
 
@@ -110,10 +110,9 @@ int main (int argc, char **argv)
     consumer_data[i].mutex = mutex;
     consumer_data[i].full = full;
     consumer_data[i].empty = empty;
-  
+ 
     pthread_create(&consumersid[i], NULL, consumer, (void*) &consumer_data[i]);
   }
-
 
   // 1(e)
 
@@ -155,6 +154,7 @@ int produce_job() {
 void *producer(void *parameter)
 {
 
+  srand(time(NULL));
   //int *param = (int *) parameter;
 
   struct producer_thread_data *received_data;
@@ -172,22 +172,34 @@ void *producer(void *parameter)
   int jobs_produced = 0;
   int job_dur;
   int next_job_produced_in;
+  int wait_result;
   
-  // loop forever
-  // while(TRUE)
- 
+  //struct sembuf sb;
+  //struct timespec tim;
+
   while(jobs_produced < num_of_jobs_per_producer) {
     job_dur = produce_job();
 
+    cout << "HERE we are " << endl;
+    
+    //sb.sem_num = empty;
+    //sb.sem_op = 0;
+    //sb.sem_flg = 0;
+    //tim.tv_sec = 20;
+
+    // wait_result = semtimedop(sem_id, &sb, 1, &tim); 
+
+    // cout << "Wait result is " << wait_result << endl;
+
+    // if(!wait_result) {
+    //   cout << "Wait time: 20'' but nothing happened " << endl;
+    //   break;
+    // }
+
     sem_wait(sem_id, empty);
-    //cout << "Empty: " << semctl(sem_id, empty, GETVAL) << endl;
-
-    if(semctl(sem_id, empty, GETVAL) < 0) {
-      cout << "Here we are! " << endl;
-      sem_signal(sem_id, empty);
-      //exit(1);
-    }
-
+    //cout << "Semtimedop " << semtimedop(sem_id, &sb, 1, &tim) << endl;
+    cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
+    // How to check if it is blocked
     sem_wait(sem_id, mutex);
     shared_buffer[jobs_produced] = job_dur;
     jobs_produced++;
@@ -197,9 +209,9 @@ void *producer(void *parameter)
 
     cout << "Value of full in producer is " << semctl(sem_id, full, GETVAL) << endl;
 
-    srand(time(NULL));
     next_job_produced_in = rand() % 5 + 1;
     sleep(next_job_produced_in);
+    cout << "Thread " << thread_id << " Sleeping for... " << next_job_produced_in << endl;
   }
 
   if(jobs_produced == num_of_jobs_per_producer) {
@@ -240,8 +252,8 @@ void *consumer (void *parameter)
 
   while(true) {
     sem_wait(sem_id, full);
-    
-    cout << "Value of full is " << semctl(sem_id, full, GETVAL) << endl;
+ 
+    cout << "Value of full in Consumer is " << semctl(sem_id, full, GETVAL) << endl;
  
     sem_wait(sem_id, mutex);
     duration = remove_item();
