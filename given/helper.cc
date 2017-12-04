@@ -60,7 +60,6 @@ void sem_signal (int id, short unsigned int num)
 
 int sem_time_wait(int id, short unsigned int num, long int seconds)
 {
-  // 0 or -1 ?
   struct sembuf op[] = {
     {num, -1, SEM_UNDO}
   };

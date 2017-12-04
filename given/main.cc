@@ -95,7 +95,7 @@ int main (int argc, char **argv)
     producer_data[i].thread_id = i;
     producer_data[i].number_of_jobs_per_producer = number_of_jobs_per_producer; 
     producer_data[i].queue_size = queue_size;
-    producer_data[i]->producer_index = &producer_index
+    producer_data[i].producer_index = &producer_index;
     producer_data[i].sem_id = sem_id;
     producer_data[i].mutex = mutex;
     producer_data[i].full = full;
@@ -143,13 +143,6 @@ int main (int argc, char **argv)
   
   pthread_exit(0);
 
-  //pthread_t producerid;
-  //int parameter = 5;
-
-  //pthread_create (&producerid, NULL, producer, (void *) &parameter);
-
-  //pthread_join (producerid, NULL);
-
   return 0;
 }
 
@@ -181,15 +174,15 @@ void *producer(void *parameter)
   int jobs_produced = 0;
   int job_dur;
   int next_job_produced_in;
-  int wait_result;
+  
+  //int wait_result;
   
   //struct sembuf sb;
   //struct timespec tim;
 
   while(jobs_produced < num_of_jobs_per_producer) {
-    job_dur = produce_job();
 
-    cout << "HERE we are " << endl;
+    job_dur = produce_job();
     
     //sb.sem_num = empty;
     //sb.sem_op = 0;
@@ -207,21 +200,33 @@ void *producer(void *parameter)
 
     sem_wait(sem_id, empty);
     //cout << "Semtimedop " << semtimedop(sem_id, &sb, 1, &tim) << endl;
-    cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
+    sem_time_wait(sem_id, empty, 20);
+    //cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
     // How to check if it is blocked
     sem_wait(sem_id, mutex);
     shared_buffer[*producer_index] = job_dur;
-    *producer_index++;
+
+    cout << "Shared buffer current state: ";
+    for(int i = 0; i < queue_size; i++)
+      cout << shared_buffer[i] << " ";
+    cout << endl;
+
+    cout << "Producer(" << thread_id << ") Job id " << *producer_index
+	 << " duration " << shared_buffer[*producer_index] << endl;
+    (*producer_index)++;
     jobs_produced++;
-    cout << "producing... " << jobs_produced << " job from thread " << thread_id << endl;
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, full);
 
-    cout << "Value of full in producer is " << semctl(sem_id, full, GETVAL) << endl;
+    //cout << "Value of full in producer is " << semctl(sem_id, full, GETVAL) << endl;
 
     next_job_produced_in = rand() % 5 + 1;
     sleep(next_job_produced_in);
-    cout << "Thread " << thread_id << " Sleeping for... " << next_job_produced_in << endl;
+    //cout << "Thread " << thread_id << " Sleeping for... " << next_job_produced_in << endl;
+  }
+
+  if(*producer_index == queue_size - 1) {
+    *producer_index = 0;
   }
 
   if(jobs_produced == num_of_jobs_per_producer) {
@@ -241,7 +246,7 @@ int remove_item() {
   
   // remove the item that will be consumed
   shared_buffer[i] = 0;
-  
+
   return duration;
 }
 
@@ -263,14 +268,20 @@ void *consumer (void *parameter)
 
   while(true) {
     sem_wait(sem_id, full);
- 
-    cout << "Value of full in Consumer is " << semctl(sem_id, full, GETVAL) << endl;
- 
+
+    sem_time_wait(sem_id, full, 20);
+    //cout << "Value of full in Consumer is " << semctl(sem_id, full, GETVAL) << endl;
+
     sem_wait(sem_id, mutex);
     duration = remove_item();
-    cout << "consuming from thread... " << thread_id  << endl;
+    cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
+	 << " executing sleep duration " << duration << endl;
+    (*consumer_index)++;
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, empty);
+
+    if(*consumer_index == queue_size - 1)
+      *consumer_index = 0;
 
     // This has the meaning of "consume the removed item"
     sleep(duration);
