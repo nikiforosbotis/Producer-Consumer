@@ -38,7 +38,6 @@ struct job_data {
 
 // See how I could improve it!
 int shared_buffer[100];
-int item_counter = 0;
 
 int main (int argc, char **argv)
 {
@@ -142,7 +141,7 @@ int main (int argc, char **argv)
   for(int i = 0; i < number_of_producers; i++) {
     pthread_join(producersid[i], NULL);
   }
-  
+
   for(int i = 0; i < number_of_consumers; i++) {
     pthread_join(consumersid[i], NULL);
   }
@@ -150,7 +149,6 @@ int main (int argc, char **argv)
   // Close the semaphores
   int closed = sem_close(sem_id);
 
-  // To be deleted
   if(!closed) {
     cout << "Semaphores successfully destroyed" << endl;
   }
@@ -170,7 +168,6 @@ void *producer(void *parameter)
 {
 
   srand(time(NULL));
-  //int *param = (int *) parameter;
 
   struct producer_thread_data *received_data;
 
