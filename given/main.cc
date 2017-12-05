@@ -194,7 +194,7 @@ void *producer(void *parameter)
     errno = sem_time_wait(sem_id, empty, 20);
 
     if(errno == -1) {
-      cout << "Producer(" << thread_id << ") The time inteval of 20 sec was "
+      cout << "Producer(" << thread_id << "): The time inteval of 20 sec was "
        	   << "exceeded without any new job being consumed" << endl;
       break;
     }
@@ -207,7 +207,7 @@ void *producer(void *parameter)
     //   cout << shared_buffer[i] << " ";
     // cout << endl;
 
-    cout << "Producer(" << thread_id << ") Job id " << *producer_index
+    cout << "Producer(" << thread_id << "): Job id " << *producer_index
 	 << " duration " << shared_buffer[*producer_index] << endl;
     (*producer_index)++;
     jobs_produced++;
@@ -230,6 +230,7 @@ void *producer(void *parameter)
 
   pthread_exit(0);
 }
+
 
 void *consumer (void *parameter)
 {
@@ -260,9 +261,15 @@ void *consumer (void *parameter)
 
     sem_wait(sem_id, mutex);
 
-    // AVOID INITIALIZING WITH 0
     duration = shared_buffer[*consumer_index];
-    // Job removed and 0 was placed for its duration
+
+    while(!duration) {
+      //*consumer_index++;
+      duration = shared_buffer[++*consumer_index];
+      cout << "Here we are with " << *consumer_index << endl;
+    }
+
+    // Job removed and 0 (signal of no existing jobs) was placed for its duration
     shared_buffer[*consumer_index] = 0;
     cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
 	 << " executing sleep duration " << duration << endl;
