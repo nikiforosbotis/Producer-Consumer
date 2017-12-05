@@ -104,7 +104,7 @@ int main (int argc, char **argv)
     pthread_create(&producersid[i], NULL, producer, (void*) &producer_data[i]);
   }
 
-  pthread_join(producersid[0], NULL);
+  //pthread_join(producersid[0], NULL);
 
   pthread_t consumersid[number_of_consumers];
 
@@ -138,7 +138,7 @@ int main (int argc, char **argv)
 
   // To be deleted
   if(!closed) {
-    cout << "Semaphores successfully closed" << endl;
+    cout << "Semaphores successfully destructed" << endl;
   }
 
   pthread_exit(0);
@@ -172,31 +172,29 @@ void *producer(void *parameter)
   int empty = received_data->empty;
 
   int jobs_produced = 0;
+  int errno;
   int job_dur;
   int next_job_produced_in;
-  
-  //int wait_result;
-  
-  //struct sembuf sb;
-  //struct timespec tim;
 
   while(jobs_produced < num_of_jobs_per_producer) {
 
     job_dur = produce_job();
 
-    //sem_wait(sem_id, empty);
+    errno = sem_time_wait(sem_id, empty, 20);
 
-    //cout << "Semtimedop " << semtimedop(sem_id, &sb, 1, &tim) << endl;
-    sem_time_wait(sem_id, empty, 20);
-    //cout << "Sem time wait called: " << sem_time_wait(sem_id, empty, 20) << endl;
-    // How to check if it is blocked
+    if(errno == -1) {
+      cout << "Producer(" << thread_id << ") The time inteval of 20 sec was "
+       	   << "exceeded without any new job being consumed" << endl;
+      break;
+    }
+
     sem_wait(sem_id, mutex);
     shared_buffer[*producer_index] = job_dur;
-
-    cout << "Shared buffer current state: ";
-    for(int i = 0; i < queue_size; i++)
-      cout << shared_buffer[i] << " ";
-    cout << endl;
+ 
+    // cout << "Shared buffer current state: ";
+    // for(int i = 0; i < queue_size; i++)
+    //   cout << shared_buffer[i] << " ";
+    // cout << endl;
 
     cout << "Producer(" << thread_id << ") Job id " << *producer_index
 	 << " duration " << shared_buffer[*producer_index] << endl;
@@ -209,32 +207,17 @@ void *producer(void *parameter)
 
     next_job_produced_in = rand() % 5 + 1;
     sleep(next_job_produced_in);
-    //cout << "Thread " << thread_id << " Sleeping for... " << next_job_produced_in << endl;
   }
 
-  if(*producer_index == queue_size - 1) {
+  if(*producer_index == queue_size) {
     *producer_index = 0;
   }
 
-  if(jobs_produced == num_of_jobs_per_producer) {
+  if((errno != -1) && (jobs_produced == num_of_jobs_per_producer)) {
     cout << "Producer(" << thread_id << "): No more jobs to generate." << endl;
   }
 
   pthread_exit(0);
-}
-
-int remove_item() {
-  int i = 0;
-
-  while(shared_buffer[i] == 0)
-    i++;
-
-  int duration = shared_buffer[i];
-  
-  // remove the item that will be consumed
-  shared_buffer[i] = 0;
-
-  return duration;
 }
 
 void *consumer (void *parameter)
@@ -252,32 +235,45 @@ void *consumer (void *parameter)
   int empty = received_data->empty;
 
   int duration;
+  int errno;
 
   while(true) {
 
     //sem_wait(sem_id, full);
 
-    sem_time_wait(sem_id, full, 20);
-    //cout << "Value of full in Consumer is " << semctl(sem_id, full, GETVAL) << endl;
+    errno = sem_time_wait(sem_id, full, 20);
+    if(errno == -1) {
+      cout << "Consumer(" << thread_id << "): The time inteval of 20 sec was "
+	   << "exceeded without any new job being produced" << endl;
+      break;
+    }
 
     sem_wait(sem_id, mutex);
-    duration = remove_item();
+    
+    // AVOID INITIALIZING WITH 0
+    duration = shared_buffer[*consumer_index];
+    shared_buffer[*consumer_index] = 0;
     cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
 	 << " executing sleep duration " << duration << endl;
     (*consumer_index)++;
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, empty);
 
-    if(*consumer_index == queue_size - 1)
+    if(*consumer_index == queue_size)
       *consumer_index = 0;
 
     // This has the meaning of "consume the removed item"
     sleep(duration);
   }
 
-  cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
-  
-  pthread_exit (0);
+  // if the 20'' have passed withouth having any new job to consumer
+  // if(errno == -1) {
+  //   cout << "The time inteval of 20 sec was exceeded without any new job to be produced"
+  // 	 << endl;
+  // } else {
+  if(errno != -1)
+    cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
 
+  pthread_exit (0);
 }
 
