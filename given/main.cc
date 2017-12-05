@@ -249,6 +249,7 @@ void *consumer (void *parameter)
   int empty = received_data->empty;
 
   int duration;
+  int id_just_finished;
   int errno;
 
   while(true) {
@@ -256,19 +257,19 @@ void *consumer (void *parameter)
     //sem_wait(sem_id, full);
 
     errno = sem_time_wait(sem_id, full, 20);
-    if(errno == -1) {
-      cout << "Consumer(" << thread_id << "): The time inteval of 20 sec was "
-	   << "exceeded without any new job being produced" << endl;
+
+    if(errno == -1)
       break;
-    }
 
     sem_wait(sem_id, mutex);
-    
+
     // AVOID INITIALIZING WITH 0
     duration = shared_buffer[*consumer_index];
+    // Job removed and 0 was placed for its duration
     shared_buffer[*consumer_index] = 0;
     cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
 	 << " executing sleep duration " << duration << endl;
+    id_just_finished = *consumer_index;
     (*consumer_index)++;
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, empty);
@@ -278,15 +279,19 @@ void *consumer (void *parameter)
 
     // This has the meaning of "consume the removed item"
     sleep(duration);
+
+    cout << "Consumer(" << thread_id << "): Job id "<< id_just_finished
+	 << " completed" << endl;
+
   }
 
-  // if the 20'' have passed withouth having any new job to consumer
-  // if(errno == -1) {
-  //   cout << "The time inteval of 20 sec was exceeded without any new job to be produced"
-  // 	 << endl;
-  // } else {
-  if(errno != -1)
-    cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
+  cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
+
+  // The 20" interval has passed withouth having any new job to consumer
+  if(errno == -1) {
+    cout << "Consumer(" << thread_id << "): The time inteval of 20 sec was "
+	 << "exceeded without any new job being produced" << endl;
+  }
 
   pthread_exit (0);
 }
