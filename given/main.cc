@@ -49,6 +49,21 @@ int main (int argc, char **argv)
   int number_of_producers = check_arg(argv[3]);
   int number_of_consumers = check_arg(argv[4]);
 
+  // Handling of invalid input
+  if(queue_size < 0) {
+    cerr << "Invalid value in the first parameter; queue size should be a non-negative integer" << endl;
+    exit(-1);
+  } else if(number_of_jobs_per_producer < 0) {
+    cerr << "Invalid value in the second parameter; number of jobs per producer should be a non-negative integer" << endl;
+    exit(-1);
+  } else if(number_of_producers < 0) {
+    cerr << "Invalid value in the third parameter; number of producers should be a non-negative integer" << endl;
+    exit(-1);
+  } else if(number_of_consumers < 0) {
+    cerr << "Invalid value in the fourth parameter; number of consumers should be a non-negative integer" << endl;
+    exit(-1);
+  }
+
   // 1(b)
 
   // initialize the queue with 0, representing the empty values
@@ -70,7 +85,6 @@ int main (int argc, char **argv)
   // Creation of the 3 Semaphores that will be needed
   int sem_id;
   sem_id = sem_create(SEM_KEY, 3);
-  //cout << "Semaphore array created " << sem_id << endl;
   
   // Initialization of the Semaphores
   
@@ -138,7 +152,7 @@ int main (int argc, char **argv)
 
   // To be deleted
   if(!closed) {
-    cout << "Semaphores successfully destructed" << endl;
+    cout << "Semaphores successfully destroyed" << endl;
   }
 
   pthread_exit(0);
