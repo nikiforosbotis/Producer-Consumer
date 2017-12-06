@@ -29,13 +29,6 @@ struct consumer_thread_data {
   int empty;
 };
 
-/*
-struct job_data {
-  int id;
-  int duration;
-};
-*/
-
 // The circular queue which will be accessed by both producers and consumers
 int shared_buffer[100];
 
@@ -65,7 +58,9 @@ int main (int argc, char **argv)
 
   // 1(b)
 
-  // initialize the queue with 0, representing the empty values
+  srand(time(NULL));
+
+  // Initialize the queue with 0, representing the empty values
   for(int i = 0; i < queue_size; i++) {
     shared_buffer[i] = 0;
   }
@@ -93,6 +88,9 @@ int main (int argc, char **argv)
 
   if((init1 == 0) && (init2 == 0) && (init3 == 0)) {
     printf("Semaphores successfully created \n");
+  } else {
+    printf("Error occured during semaphore initialization \n");
+    exit(-1);
   }
 
   // 1(d)
@@ -112,8 +110,6 @@ int main (int argc, char **argv)
   
     pthread_create(&producersid[i], NULL, producer, (void*) &producer_data[i]);
   }
-
-  //pthread_join(producersid[0], NULL);
 
   pthread_t consumersid[number_of_consumers];
 
@@ -155,16 +151,11 @@ int main (int argc, char **argv)
 }
 
 int produce_job() {
-  srand(time(NULL));
-
   return (rand() % 10 + 1);
 }
 
 void *producer(void *parameter)
 {
-
-  srand(time(NULL));
-
   struct producer_thread_data *received_data;
 
   received_data = (struct producer_thread_data *) parameter;
@@ -247,8 +238,6 @@ void *consumer (void *parameter)
   int errno;
 
   while(true) {
-
-    //sem_wait(sem_id, full);
 
     errno = sem_time_wait(sem_id, full, 20);
 
