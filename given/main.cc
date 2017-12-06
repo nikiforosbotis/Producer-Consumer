@@ -36,7 +36,7 @@ struct job_data {
 };
 */
 
-// See how I could improve it!
+// The circular queue which will be accessed by both producers and consumers
 int shared_buffer[100];
 
 int main (int argc, char **argv)
@@ -94,7 +94,6 @@ int main (int argc, char **argv)
   int init3 = sem_init(sem_id, empty, queue_size);
   //cout << "Semaphore initialized " << init3 << endl;
 
-  // To be deleted
   if((init1 == 0) && (init2 == 0) && (init3 == 0)) {
     cout << "Semaphores successfully created" << endl;
   }
@@ -167,6 +166,9 @@ int produce_job() {
 void *producer(void *parameter)
 {
 
+  // Print using a non-buffered prin in order to avoid scrumbling the output messages
+  std::cout.setf(std::ios::unitbuf);
+
   srand(time(NULL));
 
   struct producer_thread_data *received_data;
@@ -210,6 +212,11 @@ void *producer(void *parameter)
     cout << "Producer(" << thread_id << "): Job id " << *producer_index
 	 << " duration " << shared_buffer[*producer_index] << endl;
     (*producer_index)++;
+
+    if(*producer_index == queue_size) {
+      *producer_index = 0;
+    }
+    
     jobs_produced++;
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, full);
@@ -218,10 +225,6 @@ void *producer(void *parameter)
 
     next_job_produced_in = rand() % 5 + 1;
     sleep(next_job_produced_in);
-  }
-
-  if(*producer_index == queue_size) {
-    *producer_index = 0;
   }
 
   if((errno != -1) && (jobs_produced == num_of_jobs_per_producer)) {
@@ -234,6 +237,10 @@ void *producer(void *parameter)
 
 void *consumer (void *parameter)
 {
+
+  // Print using a non-buffered prin in order to avoid scrumbling the output messages
+  //std::cout.setf(std::ios::unitbuf);
+
   struct consumer_thread_data *received_data;
 
   received_data = (struct consumer_thread_data *) parameter;
@@ -256,8 +263,11 @@ void *consumer (void *parameter)
 
     errno = sem_time_wait(sem_id, full, 20);
 
-    if(errno == -1)
+    if(errno == -1) {
+      std::cout.setf(std::ios::unitbuf);
+      cout << "Consumer(" << thread_id << "): No more jobs left" << endl;
       break;
+    }
 
     sem_wait(sem_id, mutex);
 
@@ -274,22 +284,21 @@ void *consumer (void *parameter)
     cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
 	 << " executing sleep duration " << duration << endl;
     id_just_finished = *consumer_index;
-    (*consumer_index)++;
-    sem_signal(sem_id, mutex);
-    sem_signal(sem_id, empty);
 
+    (*consumer_index)++;
+	
     if(*consumer_index == queue_size)
       *consumer_index = 0;
+
+    sem_signal(sem_id, mutex);
+    sem_signal(sem_id, empty);
 
     // This has the meaning of "consume the removed item"
     sleep(duration);
 
     cout << "Consumer(" << thread_id << "): Job id "<< id_just_finished
 	 << " completed" << endl;
-
   }
-
-  cout << "Consumer (" << thread_id << "): No more jobs left" << endl;
 
   // The 20" interval has passed withouth having any new job to consumer
   if(errno == -1) {
