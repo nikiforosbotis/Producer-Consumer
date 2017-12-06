@@ -50,16 +50,16 @@ int main (int argc, char **argv)
 
   // Handling of invalid input
   if(queue_size < 0) {
-    cerr << "Invalid value in the first parameter; queue size should be a non-negative integer" << endl;
+    printf("Invalid value in the first parameter; queue size should be a non-negative integer");
     exit(-1);
   } else if(number_of_jobs_per_producer < 0) {
-    cerr << "Invalid value in the second parameter; number of jobs per producer should be a non-negative integer" << endl;
+    printf("Invalid value in the second parameter; number of jobs per producer should be a non-negative integer");
     exit(-1);
   } else if(number_of_producers < 0) {
-    cerr << "Invalid value in the third parameter; number of producers should be a non-negative integer" << endl;
+    printf("Invalid value in the third parameter; number of producers should be a non-negative integer");
     exit(-1);
   } else if(number_of_consumers < 0) {
-    cerr << "Invalid value in the fourth parameter; number of consumers should be a non-negative integer" << endl;
+    printf("Invalid value in the fourth parameter; number of consumers should be a non-negative integer");
     exit(-1);
   }
 
@@ -80,7 +80,7 @@ int main (int argc, char **argv)
   int mutex = 0;
   int full = 1;
   int empty = 2;
-    
+
   // Creation of the 3 Semaphores that will be needed
   int sem_id;
   sem_id = sem_create(SEM_KEY, 3);
@@ -88,14 +88,11 @@ int main (int argc, char **argv)
   // Initialization of the Semaphores
   
   int init1 = sem_init(sem_id, mutex, 1);
-  //cout << "Semaphore initialized " << init1 << endl;
   int init2 = sem_init(sem_id, full, 0);
-  //cout << "Semaphore initialized " << init2 << endl;  
   int init3 = sem_init(sem_id, empty, queue_size);
-  //cout << "Semaphore initialized " << init3 << endl;
 
   if((init1 == 0) && (init2 == 0) && (init3 == 0)) {
-    cout << "Semaphores successfully created" << endl;
+    printf("Semaphores successfully created \n");
   }
 
   // 1(d)
@@ -149,7 +146,7 @@ int main (int argc, char **argv)
   int closed = sem_close(sem_id);
 
   if(!closed) {
-    cout << "Semaphores successfully destroyed" << endl;
+    printf("Semaphores successfully destroyed \n");
   }
 
   pthread_exit(0);
@@ -165,9 +162,6 @@ int produce_job() {
 
 void *producer(void *parameter)
 {
-
-  // Print using a non-buffered prin in order to avoid scrumbling the output messages
-  std::cout.setf(std::ios::unitbuf);
 
   srand(time(NULL));
 
@@ -196,9 +190,7 @@ void *producer(void *parameter)
     errno = sem_time_wait(sem_id, empty, 20);
 
     if(errno == -1) {
-      std::cout.setf(std::ios::unitbuf);
-      cout << "Producer(" << thread_id << "): The time inteval of 20 sec was "
-       	   << "exceeded without any new job being consumed" << endl;
+      printf("Producer (%i): The time interval of 20 seconds was exceeded without any new job being consumed \n", thread_id); 
       break;
     }
 
@@ -210,8 +202,7 @@ void *producer(void *parameter)
     //   cout << shared_buffer[i] << " ";
     // cout << endl;
 
-    cout << "Producer(" << thread_id << "): Job id " << *producer_index
-	 << " duration " << shared_buffer[*producer_index] << endl;
+    printf("Producer(%i): Job id %i duration %i \n", thread_id, *producer_index, shared_buffer[*producer_index]);
     (*producer_index)++;
 
     if(*producer_index == queue_size) {
@@ -229,8 +220,7 @@ void *producer(void *parameter)
   }
 
   if((errno != -1) && (jobs_produced == num_of_jobs_per_producer)) {
-    std::cout.setf(std::ios::unitbuf);
-    cout << "Producer(" << thread_id << "): No more jobs to generate." << endl;
+    printf("Producer(%i): No more jobs to generate. \n", thread_id);
   }
 
   pthread_exit(0);
@@ -239,9 +229,6 @@ void *producer(void *parameter)
 
 void *consumer (void *parameter)
 {
-
-  // Print using a non-buffered prin in order to avoid scrumbling the output messages
-  //std::cout.setf(std::ios::unitbuf);
 
   struct consumer_thread_data *received_data;
 
@@ -266,8 +253,7 @@ void *consumer (void *parameter)
     errno = sem_time_wait(sem_id, full, 20);
 
     if(errno == -1) {
-      std::cout.setf(std::ios::unitbuf);
-      cout << "Consumer(" << thread_id << "): No more jobs left" << endl;
+      printf("Consumer(%i): No more jobs left \n", thread_id);
       break;
     }
 
@@ -278,17 +264,15 @@ void *consumer (void *parameter)
     while(!duration) {
       //*consumer_index++;
       duration = shared_buffer[++*consumer_index];
-      cout << "Here we are with " << *consumer_index << endl;
     }
 
     // Job removed and 0 (signal of no existing jobs) was placed for its duration
     shared_buffer[*consumer_index] = 0;
-    cout << "Consumer(" << thread_id << "): Job id "<< *consumer_index
-	 << " executing sleep duration " << duration << endl;
+    printf("Consumer(%i): Job id %i executing sleep duration %i \n", thread_id, *consumer_index, duration);
     id_just_finished = *consumer_index;
 
     (*consumer_index)++;
-	
+
     if(*consumer_index == queue_size)
       *consumer_index = 0;
 
@@ -297,16 +281,13 @@ void *consumer (void *parameter)
 
     // This has the meaning of "consume the removed item"
     sleep(duration);
-
-    cout << "Consumer(" << thread_id << "): Job id "<< id_just_finished
-	 << " completed" << endl;
+    printf("Consumer(%i): Job id %i completed \n", thread_id, id_just_finished);
   }
 
-  // The 20" interval has passed withouth having any new job to consumer
-  if(errno == -1) {
-    cout << "Consumer(" << thread_id << "): The time inteval of 20 sec was "
-	 << "exceeded without any new job being produced" << endl;
-  }
+  // // The 20" interval has passed withouth having any new job to consumer
+  // if(errno == -1) {
+  //   printf("Consumer(%i): The time interval of 20 seconds was exceeded without any new job being produced \n", thread_id);
+  // }
 
   pthread_exit (0);
 }
