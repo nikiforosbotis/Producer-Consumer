@@ -196,6 +196,7 @@ void *producer(void *parameter)
     errno = sem_time_wait(sem_id, empty, 20);
 
     if(errno == -1) {
+      std::cout.setf(std::ios::unitbuf);
       cout << "Producer(" << thread_id << "): The time inteval of 20 sec was "
        	   << "exceeded without any new job being consumed" << endl;
       break;
@@ -228,6 +229,7 @@ void *producer(void *parameter)
   }
 
   if((errno != -1) && (jobs_produced == num_of_jobs_per_producer)) {
+    std::cout.setf(std::ios::unitbuf);
     cout << "Producer(" << thread_id << "): No more jobs to generate." << endl;
   }
 
