@@ -5,6 +5,9 @@
  * sem_init - Initialise particular semaphore in semaphore array
  * sem_wait - Waits on a semaphore (akin to down ()) in the semaphore array
  * sem_signal - Signals a semaphore (akin to up ()) in the semaphore array
+ * sem_time_wait - Waits on a semaphore (akin to down()) in the semaphore array. It differs 
+ * from the sem_wait method in a sense that if there is no signal coming in a time interval
+ * of 20", it returns -1 and the program quites
  * sem_close - Destroy the semaphore array
  ******************************************************************/
 
