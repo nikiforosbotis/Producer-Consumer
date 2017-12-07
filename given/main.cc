@@ -85,7 +85,16 @@ int main (int argc, char **argv)
   // Initialize indexes in order to keep track of the next item in each case
   int producer_index = 0;
   int consumer_index = 0;
-  
+
+  // Initialize two variables to keep track of the thread creation errors
+  int thread_cr_prod;
+  int thread_cr_con;
+
+  /* Keep track of how many threads were successfully created in case of error
+   * (before this actually occured) */
+  int prod_successfully_cr;
+  int con_successfully_cr;
+
   // Number of each created semaphore
   int mutex = 0;
   int full = 1;
@@ -125,8 +134,16 @@ int main (int argc, char **argv)
     producer_data[i].mutex = mutex;
     producer_data[i].full = full;
     producer_data[i].empty = empty;
-  
-    pthread_create(&producersid[i], NULL, producer, (void*) &producer_data[i]);
+ 
+    thread_cr_prod = pthread_create(&producersid[i], NULL, producer,
+				    (void*) &producer_data[i]);
+
+    if(thread_cr_prod) {
+      printf("Error while creating producer threads. Return code from "
+	     "pthread_create() is %i \n", thread_cr_prod);
+      prod_successfully_cr = i - 1;
+      break;
+    }
   }
 
   pthread_t consumersid[number_of_consumers];
@@ -142,18 +159,43 @@ int main (int argc, char **argv)
     consumer_data[i].full = full;
     consumer_data[i].empty = empty;
  
-    pthread_create(&consumersid[i], NULL, consumer, (void*) &consumer_data[i]);
+    thread_cr_con = pthread_create(&consumersid[i], NULL, consumer,
+				    (void*) &consumer_data[i]);
+
+    if(thread_cr_con) {
+      printf("Error occured while creating consumer thread %i. Return code from "
+	     "pthread_create() is %i \n", i + 1, thread_cr_con);
+      con_successfully_cr = i - 1;
+      break;
+    }
   }
 
-  // Ensure that all threds are done
-  for(int i = 0; i < number_of_producers; i++) {
-    pthread_join(producersid[i], NULL);
+  /* Close appropriately the pthreads that were created BEFORE an error
+   * occured at some later stage of the creation process */
+  if(thread_cr_prod) {
+    for(int i = 0; i <= prod_successfully_cr; i++) {
+      pthread_join(producersid[i], NULL);
+    }
+  } else {
+    /* Ensure that all threads are done (in the most probable case that
+     * all threads were successfully created) */
+    for(int i = 0; i < number_of_producers; i++) {
+      pthread_join(producersid[i], NULL);
+    }
   }
 
-  for(int i = 0; i < number_of_consumers; i++) {
-    pthread_join(consumersid[i], NULL);
+  if(thread_cr_con) {
+    for(int i = 0; i <= con_successfully_cr; i++) {
+      pthread_join(consumersid[i], NULL);
+    }
+  } else {
+    /* Ensure that all threads are done (in the most probable case that
+     * all threads were successfully created) */
+    for(int i = 0; i < number_of_consumers; i++) {
+      pthread_join(consumersid[i], NULL);
+    }
   }
-
+ 
   // Close the semaphores
   int closed = sem_close(sem_id);
 
@@ -201,7 +243,7 @@ void *producer(void *parameter)
 
     // If the queue is full even after the waiting time of 20", quit.
     if(errno == -1) {
-      printf("Producer (%i): The time interval of 20 seconds was exceeded without"
+      printf("Producer (%i): The time interval of 20 seconds was exceeded without "
 	     "any new job being consumed \n", thread_id + 1); 
       break;
     }
