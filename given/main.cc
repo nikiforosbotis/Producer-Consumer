@@ -106,7 +106,7 @@ int main (int argc, char **argv)
   int init3 = sem_init(sem_id, empty, queue_size);
 
   if((init1 == 0) && (init2 == 0) && (init3 == 0)) {
-    printf("Semaphores successfully created \n");
+    //printf("Semaphores successfully created \n");
   } else {
     printf("Error occured during the semaphore's initialization \n");
     exit(-1);
@@ -158,7 +158,9 @@ int main (int argc, char **argv)
   int closed = sem_close(sem_id);
 
   if(!closed) {
-    printf("Semaphores successfully destroyed \n");
+    //printf("Semaphores successfully destroyed \n");
+  } else {
+    printf("An error occured while trying to close the semaphores \n");
   }
 
   pthread_exit(0);
