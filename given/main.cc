@@ -35,7 +35,7 @@ struct consumer_thread_data {
 };
 
 /* It is undestood that this way of creation of the array and then
- * the usage of  only a small part of it is inefficient. It could have
+ * the usage of only a small part of it is inefficient. It could have
  * been declared as a pointer and then created on the heap. However, it 
  * is believed that this is not in the scope of this exercise */
 
@@ -218,13 +218,15 @@ void *producer(void *parameter)
     if(*producer_index == queue_size) {
       *producer_index = 0;
     }
-    
+
     jobs_produced++;
 
     sem_signal(sem_id, mutex);
     sem_signal(sem_id, full);
 
     next_job_produced_in = rand() % 5 + 1;
+
+    // Each job is added every 1 to 5 seconds
     sleep(next_job_produced_in);
   }
 
