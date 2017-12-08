@@ -47,7 +47,7 @@ int main (int argc, char **argv)
 
   // Handling invalid number of command line arguments
   if(argc != NUM_OF_INPUT_ARGUMENTS) {
-    printf("Invalid number of input parameters; Yous should give exactly 5 parameters: \n"
+    printf("Invalid number of input parameters; You should give exactly 5 parameters: \n"
            "program's name, the queue's size, "
            "the number of jobs per producer, the number of producers and the number of "
            "consumers \n");
